@@ -5,7 +5,6 @@ import sys
 from loguru import logger
 from pydantic import ValidationError
 
-from .config import min_length_horizont_well
 from .Schema import dict_coord_column, dict_HHT_column, Validator_Coord, Validator_HHT
 from .Utility_function import df_Coordinates_prepare
 
@@ -36,7 +35,7 @@ def check_is_static_files_exists(app_dir_path: str, oilfield_name: str) -> tuple
     return coordinates_data_on_field, thickness_data_on_field
 
 
-def prepare_coordinates(coordinates_df: pd.DataFrame) -> tuple:
+def prepare_coordinates(coordinates_df: pd.DataFrame, min_length_horizont_well: int) -> tuple:
     """Подготовка, валидация и обработка фрейма с данными о координатах по скважинам"""
 
     coordinates_df_copy = coordinates_df

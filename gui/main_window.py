@@ -24,7 +24,7 @@ class MainWindow(QMainWindow):
 
         # Инициализация сетки
         self.grid_layout = MainPageGridLayout()
-        self.grid_layout.addWidget(self.output_console, 15, 0, 1, 3)
+        self.grid_layout.addWidget(self.output_console, 18, 0, 1, 3)
 
         self.widget.setLayout(self.grid_layout)
         self.setCentralWidget(self.widget)

@@ -5,8 +5,6 @@ from dateutil.relativedelta import relativedelta
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 
-from .config import HAS_WORKING_HOURS_FOR_THE_LAST_YEAR
-
 
 def df_Coordinates_prepare(df, min_length_horWell):
     last_data = pd.Timestamp(np.sort(df.Date.unique())[-1])
@@ -24,7 +22,7 @@ def df_Coordinates_prepare(df, min_length_horWell):
     return new_df
 
 
-def history_prepare(history, type_wells, time_work_min):
+def history_prepare(history, type_wells, time_work_min, well_work_last_year: bool):
     """
     Предварительная обработка истории
     :param history: DataFrame с историей
@@ -62,7 +60,7 @@ def history_prepare(history, type_wells, time_work_min):
     history = history[history.Well_number.isin(unique_wells)]
 
     # Если переменная True - оставляем объекты, находившихся в работе за последний год
-    if HAS_WORKING_HOURS_FOR_THE_LAST_YEAR:
+    if well_work_last_year:
         start_data_previous_last_year = last_data.astype('M8[ms]').astype('O') - relativedelta(months=12)
         objects = history[(history.Date >= start_data_previous_last_year)].groupby(['Well_number'])['Horizon'].apply(list)
     else:

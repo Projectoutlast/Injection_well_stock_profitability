@@ -37,6 +37,10 @@ def expenditure_side(Q_oil, Q_fluid, W,
     :param unit_costs_injection: уд. расходы на закачку, руб/м3
     :param unit_cost_fluid: уд. расходы на жидкость, руб/т
     """
+    # W = W.loc[:, Q_oil.iloc[:, 5:].columns.to_list()]
+    diff_data = set(W.iloc[:, 2:].columns.to_list()).difference(Q_oil.iloc[:, 5:].columns.to_list())
+    W = W.drop(columns=diff_data)
+
     num_days = np.reshape(np.array(pd.to_datetime(Q_oil.columns[5:]).days_in_month), (1, -1))
 
     costs_oil = np.array(Q_oil.iloc[:, 5:]) * np.reshape(np.array(unit_costs_oil), (-1, 1))
@@ -51,6 +55,7 @@ def expenditure_side(Q_oil, Q_fluid, W,
     cost_inj_wells = np.array(W.iloc[:, 2:]) * unit_costs_injection * num_days
     cost_inj_wells = pd.DataFrame(cost_inj_wells, columns=W.columns[2:])
     cost_inj_wells = pd.concat([W.iloc[:, :1], cost_inj_wells], axis=1)
+    cost_inj_wells = cost_inj_wells.loc[cost_inj_wells["Ячейка"].isin(cost_prod_wells["Ячейка"].unique()), :]
 
     cost_cells = cost_prod_wells.groupby(['Ячейка'])[cost_prod_wells.columns[4:]].sum().sort_index()
     cost_inj_wells = cost_inj_wells.sort_values(by='Ячейка')

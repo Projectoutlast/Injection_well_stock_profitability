@@ -10,13 +10,13 @@ def check_is_files_exists(path_to_mer: str, path_to_prod: str, path_to_inj: str)
 
     if not os.path.isfile(path_to_mer):
         logger.warning("Неверно указан путь к файлу МЭР")
-        sys.exit()
+        raise "Неверно указан путь к файлу МЭР"
     if not os.path.isfile(path_to_prod):
         logger.warning("Неверно указан путь к тех. режиму добывающих скважин")
-        sys.exit()
+        raise "Неверно указан путь к тех. режиму добывающих скважин"
     if not os.path.isfile(path_to_inj):
         logger.warning("Неверно указан путь к тех. режиму нагнетательных скважин")
-        sys.exit()
+        raise "Неверно указан путь к тех. режиму нагнетательных скважин"
 
     return
 

@@ -13,7 +13,6 @@ from .I_Cell_calculate import calculation_coefficients, calculation_injCelle
 from .II_Oil_increment_calculate import calculate_oil_increment
 from .III_Uncalculated_wells_and_summation_increments import final_adaptation_and_summation
 from .IV_Forecast_calculate import calculate_forecast
-from .config import DEFAULT_HHT, MAX_DISTANCE, MONTHS_OF_WORKING, time_work_min
 from .drainage_area import get_properties, calculate_zones
 from .economy.economy_functions import (select_analogue, expenditure_side, revenue_side, estimated_revenue, taxes,
                                         Profit, FCF, DCF)
@@ -29,7 +28,25 @@ from .Utility_function import get_period_of_working_for_calculating, history_pre
 from .water_pipeline_facilities import water_pipelines
 
 
-def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_to_inj: str) -> None:
+def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_to_inj: str, **kwargs) -> None:
+    """** kwargs:
+    default_nnt - ННТ в метрах по умолчанию
+    drainage_areas - зона дренирования
+    dynamic_coefficient - динамический коэффициент
+    max_distance - максимальное расстояние по умолчанию от нагнетательной до реагирующей скважин
+    min_length_horizont_well - мин. длина м/у точками Т1 и Т3, чтобы считать скважину горизонтальной
+    time_work_min - минимальное время работы скважины в месяц, дней
+    wells_are_working_only_on_the_date_of_assessment - с учетом скважин, на дату оценки
+    work_last_n_month - взять в расчет только те скважины, которые работали последние Х месяцев
+    wells_operating_for_the_last_year - с учетом скважин, находившихся в работе за последний год"""
+
+    default_nnt = kwargs["default_nnt"]
+    max_distance = kwargs["max_distance"]
+    min_length_horizon = kwargs["min_length_horizon"]
+    min_time_work = kwargs["min_time_work"]
+    well_operating_last_year = kwargs["well_operating_last_year"]
+    month_work = kwargs["month_work"]
+
     # ------------------------------- Предварительная обработка файлов перед расчетом ------------------------------- #
     warnings.filterwarnings('ignore')
     pd.options.mode.chained_assignment = None  # default='warn'
@@ -42,7 +59,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
 
     logger.info("1.1 Чтение файла с координатами в дата фрейм, подготовка фрейма к работе")
     df_coordinates = pd.read_excel(coordinates_data_on_field_path)
-    df_coordinates, reservoir = prepare_coordinates(df_coordinates)
+    df_coordinates, reservoir = prepare_coordinates(df_coordinates, min_length_horizon)
 
     logger.info("1.2 Чтение файлов с толщинами в дата фрейм, подготовка фрейма к работе")
     df_nnt = prepare_thickness(thickness_data_on_field_path)
@@ -67,8 +84,8 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
     df_inj.columns = dict_inj_column.values()
     df_inj.Date = pd.to_datetime(df_inj.Date, dayfirst=True)
 
-    if MONTHS_OF_WORKING:
-        df_inj = get_period_of_working_for_calculating(df_inj, MONTHS_OF_WORKING)
+    if month_work:
+        df_inj = get_period_of_working_for_calculating(df_inj, month_work)
 
     logger.info("3.1 Валидация и обработка файла")
 
@@ -77,7 +94,8 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
     except ValidationError as e:
         print(e)
 
-    df_inj = history_prepare(df_inj, type_wells='inj', time_work_min=time_work_min)
+    df_inj = history_prepare(df_inj, type_wells='inj', time_work_min=min_time_work,
+                             well_work_last_year=well_operating_last_year)
 
     logger.info("4 Обработка тех. режима по добывающим скважинам")
     df_prod = df_prod[df_prod['Способ эксплуатации'] == 'ЭЦН']  # Костыль, фильтровать в препроцессинге
@@ -85,8 +103,8 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
     df_prod.columns = dict_prod_column.values()
     df_prod.Date = pd.to_datetime(df_prod.Date, dayfirst=True)
 
-    if MONTHS_OF_WORKING:
-        df_prod = get_period_of_working_for_calculating(df_prod, MONTHS_OF_WORKING)
+    if month_work:
+        df_prod = get_period_of_working_for_calculating(df_prod, month_work)
 
     logger.info(f"4.1 Валидация и обработка файла")
     try:
@@ -94,7 +112,8 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
     except ValidationError as e:
         print(e)
 
-    df_prod = history_prepare(df_prod, type_wells='prod', time_work_min=time_work_min)
+    df_prod = history_prepare(df_prod, type_wells='prod', time_work_min=min_time_work,
+                              well_work_last_year=well_operating_last_year)
 
     logger.info("Успешно")
 
@@ -137,7 +156,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
 
     logger.info(f"Upload database for reservoir: {reservoir}")
 
-    df_nnt.replace(to_replace=0, value=DEFAULT_HHT, inplace=True)
+    df_nnt.replace(to_replace=0, value=default_nnt, inplace=True)
 
     df_inj.Date = pd.to_datetime(df_inj.Date, dayfirst=True)
     df_prod.Date = pd.to_datetime(df_prod.Date, dayfirst=True)
@@ -211,7 +230,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
         if drainage_areas:
             dict_properties = get_properties(actual_reservoir_properties, [horizon])
             df_drainage_areas = calculate_zones(list_wells, list_prod_wells, df_prod_horizon, df_inj_horizon,
-                                                dict_properties, df_coordinates, dict_HHT, DEFAULT_HHT)
+                                                dict_properties, df_coordinates, dict_HHT, default_nnt)
 
         logger.info("I. Start calculation of injCelle for each inj well")
         df_injCells_horizon, \
@@ -224,11 +243,11 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
                                                                     df_drainage_areas,
                                                                     drainage_areas,
                                                                     max_overlap_percent=max_overlap_percent,
-                                                                    default_distance=MAX_DISTANCE,
+                                                                    default_distance=max_distance,
                                                                     angle_verWell=angle_verWell,
                                                                     angle_horWell_T1=angle_horWell_T1,
                                                                     angle_horWell_T3=angle_horWell_T3,
-                                                                    DEFAULT_HHT=DEFAULT_HHT)
+                                                                    DEFAULT_HHT=default_nnt)
         df_inj_wells_without_surrounding['Exception_reason'] = 'отсутствует окружение'
         df_exception_wells = df_exception_wells.append(df_inj_wells_without_surrounding, ignore_index=True)
         if df_injCells_horizon.empty:
