@@ -8,6 +8,7 @@ import yaml
 from dateutil.relativedelta import relativedelta
 from loguru import logger
 from pydantic import ValidationError
+from typing import Optional
 
 from .I_Cell_calculate import calculation_coefficients, calculation_injCelle
 from .II_Oil_increment_calculate import calculate_oil_increment
@@ -24,11 +25,11 @@ from .preparation_data import (convert_date, final_prepare_data_frames, get_file
                                prepare_production_data_frame)
 from .preparation_static_files import check_is_static_files_exists, prepare_coordinates, prepare_thickness
 from .Schema import dict_inj_column, dict_prod_column, Validator_inj, Validator_prod
-from .Utility_function import get_period_of_working_for_calculating, history_prepare, merging_sheets
+from .Utility_function import get_period_of_working_for_calculating, get_save_path, history_prepare, merging_sheets
 from .water_pipeline_facilities import water_pipelines
 
 
-def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_to_inj: str, **kwargs) -> None:
+def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_to_inj: str, **kwargs) -> Optional[str]:
     """** kwargs:
     default_nnt - ННТ в метрах по умолчанию
     drainage_areas - зона дренирования
@@ -304,7 +305,12 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
             sht = new_wb.sheets(f"{key}")
             sht.range('A1').options().value = dict_reservoir_df[key]
 
-        new_wb.save(dir_path + f"\\output\\{reservoir}.xlsx")
+        try:
+            path_to_save = get_save_path("injection_profitability")
+        except PermissionError:
+            return "Нет прав доступа для записи"
+
+        new_wb.save(path_to_save + f"\\{reservoir}.xlsx")
         app1.kill()
 
     logger.info("1. Подготовка данных для расчета экономики")
@@ -347,13 +353,13 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
     macroeconomics = macroeconomics.fillna(method='ffill', axis=1)
 
     logger.info("check the content of output")
-    output_path = f"{dir_path}\\output"
-    output_content = os.listdir(path=output_path)
 
     try:
-        output_content.remove('Экономика')
-    except ValueError:
-        pass
+        path_to_save = get_save_path("injection_profitability")
+    except PermissionError:
+        return "Нет прав доступа для записи"
+
+    output_content = os.listdir(path=path_to_save)
 
     if output_content:
         logger.info(f"reservoirs: {len(output_content)}")
@@ -362,7 +368,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
 
     for file in output_content:
         logger.info(f"load file: {file}")
-        file_path = output_path + f"\\{file}"
+        file_path = path_to_save + f"\\{file}"
         reservoir = file.replace(".xlsx", "")
 
         # Dataframes:
@@ -504,7 +510,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
         add_on_sheet(new_wb, f"{reservoir} DCF", dcf)
         add_on_sheet(new_wb, f"{reservoir} NPV", npv)
 
-        logger.info(f"Запись .xlsx")
-        new_wb.save(f"{output_path}\\Экономика\\{reservoir}_экономика.xlsx")
+        logger.info(f"Запись.xlsx")
+        new_wb.save(path_to_save + f"\\{reservoir}_экономика.xlsx")
         app1.kill()
     return

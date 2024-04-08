@@ -1,5 +1,7 @@
 import numpy as np
+import os
 import pandas as pd
+import win32api
 
 from dateutil.relativedelta import relativedelta
 from sklearn.linear_model import LinearRegression
@@ -230,3 +232,37 @@ def get_period_of_working_for_calculating(df: pd.DataFrame, months: int) -> pd.D
     result = df[df.Well_number.isin(list(count_months.Well_number.unique()))]
 
     return result
+
+
+
+def create_new_dir(path: str) -> None:
+    if not os.path.isdir(path):
+        os.makedirs(path)
+    return
+
+
+def get_save_path(program_name: str = "default") -> str:
+    """
+    Запись выходных файлов
+    :return:
+    """
+    if os.access(os.getcwd(), os.W_OK):
+        create_new_dir(f"{os.getcwd()}\\{program_name}_output")
+        return f"{os.getcwd()}\\{program_name}_output"
+
+    drives = win32api.GetLogicalDriveStrings()
+    drive = [drive for drive in drives.split('\\\000')[:-1] if 'C:' in drive]
+    current_user = os.getlogin()
+
+    if len(drive) < 1:
+        raise PermissionError
+
+    profile_dir = [dir_ for dir_ in os.listdir(drive[0]) if dir_.lower() == "profiles" or dir_.upper() == "PROFILES"]
+
+    if len(profile_dir) < 1:
+        create_new_dir(f"{drive[0]}\\{program_name}_output")
+        return f"{drive[0]}\\{program_name}_output"
+
+    create_new_dir(f"{drive[0]}\\{profile_dir[0]}\\{current_user}\\{program_name}_output")
+    return f"{drive[0]}\\{profile_dir[0]}\\{current_user}\\{program_name}_output"
+
