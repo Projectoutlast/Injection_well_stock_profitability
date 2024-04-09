@@ -74,8 +74,9 @@ def final_adaptation_and_summation(df_prod_horizon, df_inj_horizon, df_final_pro
 
                 for column in slice_well_gain.columns:
                     position = list(slice_well_gain.columns).index(column) + 1
-                    df_one_prod_well.iloc[position, 3:] = slice_well_gain[column] \
-                        .combine_first(df_one_prod_well.iloc[position, 3:])
+                    combined_df = slice_well_gain[column].combine_first(df_one_prod_well.iloc[position, 3:])
+                    df_one_prod_well.iloc[position, 3:] = combined_df.loc[
+                        combined_df.index.isin(df_one_prod_well.iloc[position, 3:].index)]
                     if column == "accum_liquid_fact":
                         df_one_prod_well.iloc[position, 3:] = df_one_prod_well.iloc[position, 3:].ffill(axis=0)
                 df_one_prod_well = df_one_prod_well.fillna(0)

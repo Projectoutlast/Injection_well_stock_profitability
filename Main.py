@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import os
 import pandas as pd
@@ -51,21 +52,27 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
     # ------------------------------- Предварительная обработка файлов перед расчетом ------------------------------- #
     warnings.filterwarnings('ignore')
     pd.options.mode.chained_assignment = None  # default='warn'
+    logging.basicConfig(level=logging.DEBUG, filename="logfile.txt", filemode="w")
 
     logger.info("1. Проверка наличия статических файлов (координаты, толщины)")
+    logging.info("1. Проверка наличия статических файлов (координаты, толщины)")
     field_name = reservoir_name
     dir_path = os.path.dirname(os.path.realpath(__file__))
     logger.info(f"path:{dir_path}")
+    logging.info("")
     coordinates_data_on_field_path, thickness_data_on_field_path = check_is_static_files_exists(dir_path, field_name)
 
     logger.info("1.1 Чтение файла с координатами в дата фрейм, подготовка фрейма к работе")
+    logging.info("1.1 Чтение файла с координатами в дата фрейм, подготовка фрейма к работе")
     df_coordinates = pd.read_excel(coordinates_data_on_field_path)
     df_coordinates, reservoir = prepare_coordinates(df_coordinates, min_length_horizon)
 
     logger.info("1.2 Чтение файлов с толщинами в дата фрейм, подготовка фрейма к работе")
+    logging.info("1.2 Чтение файлов с толщинами в дата фрейм, подготовка фрейма к работе")
     df_nnt = prepare_thickness(thickness_data_on_field_path)
 
     logger.info("2. Подготовка тех. режимов. Восполнение данных о работе скважин из МЭР")
+    logging.info("2. Подготовка тех. режимов. Восполнение данных о работе скважин из МЭР")
     df_mer, df_prod, df_inj = get_files(path_to_mer, path_to_prod, path_to_inj)
     df_prod = convert_date(df_prod)
     df_inj = convert_date(df_inj)
@@ -81,6 +88,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
     df_inj = final_prepare_data_frames(df_inj, mode="inj")
 
     logger.info("3. Обработка тех. режима по нагнетательным скважинам")
+    logging.info("3. Обработка тех. режима по нагнетательным скважинам")
     df_inj = df_inj[list(dict_inj_column.keys())]
     df_inj.columns = dict_inj_column.values()
     df_inj.Date = pd.to_datetime(df_inj.Date, dayfirst=True)
@@ -89,6 +97,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
         df_inj = get_period_of_working_for_calculating(df_inj, month_work)
 
     logger.info("3.1 Валидация и обработка файла")
+    logging.info("3.1 Валидация и обработка файла")
 
     try:
         Validator_inj(df_dict=df_inj.to_dict(orient="records"))
@@ -99,6 +108,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
                              well_work_last_year=well_operating_last_year)
 
     logger.info("4 Обработка тех. режима по добывающим скважинам")
+    logging.info("4 Обработка тех. режима по добывающим скважинам")
     df_prod = df_prod[df_prod['Способ эксплуатации'] == 'ЭЦН']  # Костыль, фильтровать в препроцессинге
     df_prod = df_prod[list(dict_prod_column.keys())]
     df_prod.columns = dict_prod_column.values()
@@ -107,7 +117,8 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
     if month_work:
         df_prod = get_period_of_working_for_calculating(df_prod, month_work)
 
-    logger.info(f"4.1 Валидация и обработка файла")
+    logger.info("4.1 Валидация и обработка файла")
+    logging.info("4.1 Валидация и обработка файла")
     try:
         Validator_prod(df_dict=df_prod.to_dict(orient="records"))
     except ValidationError as e:
@@ -117,13 +128,16 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
                               well_work_last_year=well_operating_last_year)
 
     logger.info("Успешно")
+    logging.info("Успешно")
 
     # ------------------------------------- Расчет ячеек ------------------------------------- #
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
     logger.info(f"path:{dir_path}")
+    logging.info("path:{dir_path}")
 
     logger.info(f"upload conf_files")
+    logging.info("upload conf_files")
     with open(f'{dir_path}\\conf_files\\initial_coefficient.yml') as f:
         initial_coefficient = pd.DataFrame(yaml.safe_load(f))
     with open(f'{dir_path}\\conf_files\\reservoir_properties.yml', 'rt', encoding='utf8') as yml:
@@ -156,6 +170,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
     reservoir = df_coordinates['Reservoir_name'].unique()[0]
 
     logger.info(f"Upload database for reservoir: {reservoir}")
+    logging.info(f"Upload database for reservoir: {reservoir}")
 
     df_nnt.replace(to_replace=0, value=default_nnt, inplace=True)
 
@@ -181,8 +196,10 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
     df_exception_wells = pd.DataFrame()
 
     logger.info(f"list of horizons for calculation: {list_horizons}")
+    logging.info(f"list of horizons for calculation: {list_horizons}")
     for horizon in list_horizons:
         logger.info(f"Start calculation reservoir: {reservoir} horizon: {horizon}")
+        logging.info(f"Start calculation reservoir: {reservoir} horizon: {horizon}")
 
         # select the history and HHT for this horizon
         df_inj_horizon = df_inj[df_inj.Horizon == horizon]
@@ -227,6 +244,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
         last_data = pd.Timestamp(np.sort(df_inj_horizon.Date.unique())[-1])
 
         logger.info("0. Calculate drainage and injection zones for all wells")
+        logging.info("0. Calculate drainage and injection zones for all wells")
         df_drainage_areas = pd.DataFrame()
         if drainage_areas:
             dict_properties = get_properties(actual_reservoir_properties, [horizon])
@@ -234,6 +252,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
                                                 dict_properties, df_coordinates, dict_HHT, default_nnt)
 
         logger.info("I. Start calculation of injCelle for each inj well")
+        logging.info("I. Start calculation of injCelle for each inj well")
         df_injCells_horizon, \
             df_inj_wells_without_surrounding = calculation_injCelle(list_inj_wells,
                                                                     df_Coordinates_horizon,
@@ -259,10 +278,12 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
         list_inj_wells = list(df_injCells_horizon["Ячейка"].unique())
 
         logger.info("II. Calculate oil increment for each injection well")
+        logging.info("II. Calculate oil increment for each injection well")
         df_final_prod_well, dict_averaged_effects, dict_uncalculated_cells = \
             calculate_oil_increment(df_prod_horizon, last_data, horizon, df_injCells_horizon)
 
         logger.info("III. Adaptation of uncalculated wells")
+        logging.info("III. Adaptation of uncalculated wells")
         df_final_inj_well, df_final_prod_well = final_adaptation_and_summation(df_prod_horizon, df_inj_horizon,
                                                                                df_final_prod_well, last_data,
                                                                                horizon, df_injCells_horizon,
@@ -270,6 +291,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
                                                                                dict_averaged_effects,
                                                                                conversion_factor)
         logger.info("IV. Forecast")
+        logging.info("IV. Forecast")
         df_forecasts = calculate_forecast(list_inj_wells, df_final_inj_well, df_injCells_horizon,
                                           horizon, time_predict)
         df_injCells_horizon.insert(3, 'Водовод', 'Нет данных')
@@ -314,6 +336,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
         app1.kill()
 
     logger.info("1. Подготовка данных для расчета экономики")
+    logging.info("1. Подготовка данных для расчета экономики")
     dir_path = os.path.dirname(os.path.realpath(__file__))
     economy_path = os.path.join(dir_path, "economy\\Экономика")
 
@@ -335,6 +358,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
     business_plan_long = pd.read_excel(economy_path + "\\Макра_долгосрочная.xlsx", usecols="A, H:N", header=3)  # type: ignore
 
     logger.info("Предварительная обработка и подготовка файлов")
+    logging.info("Предварительная обработка и подготовка файлов")
     macroeconomics = preparation_macroeconomics(macroeconomics, dict_macroeconomics)
     business_plan = preparation_business_plan(business_plan, dict_business_plan)
     coefficients = preparation_coefficients(coefficients)
@@ -353,6 +377,7 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
     macroeconomics = macroeconomics.fillna(method='ffill', axis=1)
 
     logger.info("check the content of output")
+    logging.info("check the content of output")
 
     try:
         path_to_save = get_save_path("injection_profitability")
@@ -363,11 +388,13 @@ def main_script(reservoir_name: str, path_to_mer: str, path_to_prod: str, path_t
 
     if output_content:
         logger.info(f"reservoirs: {len(output_content)}")
+        logging.info(f"reservoirs: {len(output_content)}")
     else:
         raise FileExistsError("no files!")
 
     for file in output_content:
         logger.info(f"load file: {file}")
+        logging.info(f"load file: {file}")
         file_path = path_to_save + f"\\{file}"
         reservoir = file.replace(".xlsx", "")
 

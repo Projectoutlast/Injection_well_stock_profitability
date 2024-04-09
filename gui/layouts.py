@@ -1,3 +1,6 @@
+import logging
+import traceback
+
 from PySide6.QtWidgets import QComboBox, QGridLayout, QLabel
 
 from .buttons import CalculateButton, MaxDistanceBtn, MinLengthHorizonWellBtn, MonthOfWorkBtn, NNTValueBtn, TimeWorkMinBtn, WellOperatingForTheLastYear
@@ -96,11 +99,16 @@ class MainPageGridLayout(QGridLayout):
         prod_path = self.choose_prod.line_text.text()
         inj_path = self.choose_inj.line_text.text()
         check_is_files_exists(mer_path, prod_path, inj_path)
+        try:
+            main_script(self.list_of_fields.currentText(), mer_path, prod_path, inj_path,
+                        default_nnt=self.nnt_value.current_value,
+                        max_distance=self.max_distance.max_distance,
+                        min_length_horizon=self.min_length_horizon.min_horizon_well_length,
+                        min_time_work=self.min_time_work.minimum_work_time,
+                        well_operating_last_year=self.well_operating_last_year.state,
+                        month_work=self.month_work.month_of_work)
+        except Exception as e:
+            with open("exception.txt", "w") as f:
+                f.write(str(e))
+                f.write(traceback.format_exc())
 
-        main_script(self.list_of_fields.currentText(), mer_path, prod_path, inj_path,
-                    default_nnt=self.nnt_value.current_value,
-                    max_distance=self.max_distance.max_distance,
-                    min_length_horizon=self.min_length_horizon.min_horizon_well_length,
-                    min_time_work=self.min_time_work.minimum_work_time,
-                    well_operating_last_year=self.well_operating_last_year.state,
-                    month_work=self.month_work.month_of_work)
